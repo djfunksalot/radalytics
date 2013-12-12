@@ -215,7 +215,8 @@ results$dilution<-ifelse(((results$conc_mean>ul)&(results$type=="sample")),"TRUE
        dev.off()
    }                                               
 
-return(results)
+curve<-list(rsquared=rsquared,cc=cc,d=d,b=b,e=e)
+return(list(curve=curve,results=results))
           
 }
 
@@ -392,7 +393,8 @@ results$dilution<-results$conc_mean>250
   }                                               
 
 #presents table with updated results
-  return(results)
+legend<-c('NA')
+return(list(legend,results))
           
 }
 
@@ -588,7 +590,8 @@ results$dilution<-ifelse(((results$conc_mean>ul)&(results$type=="sample")),"TRUE
     dev.off()
   }                                               
           
-return(results)
+legend<-c('NA')
+return(list(legend,results))
 
 }
 

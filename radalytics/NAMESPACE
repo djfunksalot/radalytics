@@ -3,5 +3,6 @@ export(
 	fiveplfit,
 	linearfit,
 	westgard,
-	applyStandards
+	applyStandards,
+	log10Nice
        )
