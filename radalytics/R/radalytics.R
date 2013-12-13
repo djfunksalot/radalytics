@@ -28,7 +28,7 @@ function(data,standards)
 	i<-0
 	while (i<nrow(standards)) {
 		i<-i+1
-		standard<-standards[i,]
+		standard<standards-standards[i,]
 		data[data$type == 'standard' & data$name == standard$name,]$conc<-standard$value
         }
 	return(data)
@@ -133,7 +133,11 @@ function(data,ul,hlimL,hlimH,vlim,name='X')
 	samples$calc_conc[is.na(samples$calc_conc)]<-0
 
  #creates a sequence of concs which take on the concs of the best-fit line for a 4-pl curve.                      
-  x <-seq(min(p2),max(p2),length=10000)
+ min<-min(p2)
+ max<-max(p2)
+
+
+  x <-seq(min,max,length=10000)
 	y <-(cc+((d-cc)/(1+exp(b*log(x)-b*log(e)))))
 
 #Creates a dataset of the log blank OD concs and the calculated log concentration
@@ -215,7 +219,7 @@ results$dilution<-ifelse(((results$conc_mean>ul)&(results$type=="sample")),"TRUE
        dev.off()
    }                                               
 
-curve<-list(rsquared=rsquared,cc=cc,d=d,b=b,e=e)
+curve<-list(rsquared=rsquared,cc=cc,d=d,b=b,e=e,low=low,min=min,max=max)
 return(list(curve=curve,results=results))
           
 }
