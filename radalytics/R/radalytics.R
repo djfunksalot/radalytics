@@ -220,7 +220,7 @@ results$dilution<-ifelse(((results$conc_mean>ul)&(results$type=="sample")),"TRUE
    }                                               
 
 curve<-list(rsquared=rsquared,cc=cc,d=d,b=b,e=e,low=low,min=min,max=max)
-return(list(curve=curve,results=results))
+return(list(curve=curve,results=results,standards=standards))
           
 }
 
