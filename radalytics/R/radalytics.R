@@ -33,6 +33,8 @@ function(data,standards)
         }
 	return(data)
 }
+
+
 ##################################################START 4-PL FUNCTION#########################################
 
 
@@ -43,7 +45,191 @@ function(data,standards)
 #  hlimH - horizontal limit high. This is the CV threshold for unknowns that have a concentration below the vertical threshold and above the limit of detection
 #  vlim - vertical limit. This is selected based on a number of semi-arbitrary criteria. Examples; the second lowest calibrator, the upper limit divided by 10, or just by eyeballing the concentration vs. CV plot 
 
-"fourplfit"<-
+"fourpl"<-
+function(data,ul,hlimL,hlimH,vlim,name='X') {
+	# calls package 'dose response curve' which contains the drm() function used for non-linear regression
+	require('drc')
+	#check to see if we are running on a server
+	is_server<-Sys.getenv("is_server", unset = FALSE)
+
+	#split data array into samples and standards
+	samples<-rbind(split(data,data$type)$sample,split(data,data$type)$control)
+	standards<-split(data,data$type)$standard
+
+	#create separate array for background standards
+	#bgs<-standards[standards$conc==0,]
+
+	#average background od
+	#bg_mean<-mean(bgs$od)
+
+	#remove background from rest of standards
+	#standards<-standards[standards$conc!=0,]
+
+	#Creates a scaling factor which will set the lowest calibator value to 1 in the case that it is less than one.
+	#This is done to remove negative log vales which cannot be used as starting parameters in the drm() function later on.       
+	#low<-ifelse(min(standards$conc)<1,low<-min(standards$conc),low<-1)
+
+    
+	#correct for background
+	# odb = optical density background (corrected) not the rapper
+	# samples$odb<-samples$od-bg_mean
+	# standards$odb<-standards$od-bg_mean
+	# bgs$odb<-bgs$od-bg_mean                                                                            
+
+	#log transform of the calibrator dataset.
+  	#standards$logodb<-log10Nice(standards$odb)
+	#logconc<-log10(standards$conc/low)
+
+	#log transform of backgrounds
+	#bgs$logodb<-log10Nice(bgs$odb)
+	#bgs$logconc<-log10Nice(bgs$conc)
+
+	#log transform of unknown OD concs
+	#samples$logodb<-log10Nice(samples$odb)
+
+	#instantiate plot file
+	if (is_server) {
+		jpeg('rplot.jpg',width = 960, height = 960, units = "px", quality = 100)
+	}
+
+	#Dose response function which fits a 4pl model to the calibrator dataset
+	fit<-drm(data.frame(standards$od,standards$conc),fct=LL.4())
+
+#set IDs for the coefficients calculated by the 4-pl fit.
+	b=hill_slope=round(fit$coef[1],6)
+	cc=min_asymptote=round(fit$coef[2],6)
+	d=max_asymptote=round(fit$coef[3],6)
+	e=inflection_point=round(fit$coef[4],6)                            
+
+	#Calculates a linear r^2 conc, rounded to six decimal places. NOTE this is only an estimated r^2 conc since a 4-pl curve fit doesn't normally contain an r^2 conc.
+	rsquared<-round(cor(standards$od,standards$conc),6)
+                      
+	#Calculates the corresponding concentration from the 4pl equation. 
+	samples$dilution[samples$type=='control']<-6
+	samples$dilution[samples$type=='standard']<-6
+	samples$calc_conc=e*(((-d+samples$od)/(cc-samples$od))^(1/b))
+	samples$calc_conc_dil=samples$calc_conc*samples$dilution
+	standards$calc_conc=e*(((-d+standards$od)/(cc-standards$od))^(1/b))
+	standards$calc_conc_dil=standards$calc_conc
+  
+  
+	#Removes NaN values from the logconc columns and replaces them with NA  
+	samples$calc_conc[is.na(samples$calc_conc)]<-NA
+	standards$calc_conc[is.na(standards$calc_conc)]<-NA
+  
+	#Creates a vector which contains the sample log concentration values which do not equal NaN  
+	p2<-samples$calc_conc[!is.na(samples$calc_conc)]
+  
+  
+#Set any remaining NaN concs to a concentration of 0
+	#samples$calc_conc[is.na(samples$calc_conc)]<-0
+
+ #creates a sequence of concs which take on the concs of the best-fit line for a 4-pl curve.                      
+	min<-min(p2)
+	max<-max(p2)
+
+
+#  x <-seq(0,max,length=10000)
+#	y <-(cc+((d-cc)/(1+exp(b*log(x)-b*log(e)))))
+#
+#Creates a dataset of the log blank OD concs and the calculated log concentration
+	unknowns<-data.frame(abs=c(samples$od),conc=c(samples$calc_conc))
+
+#partitions the graph into 1 row and 2 columns
+#  par(mfrow=c(2,1))
+
+#set the title for the graph
+  main=paste("Assay ",name,":  units")
+
+#plots the log10 concentration vs. log10 OD concs for the calibrators. The x domain is set to include +/- 1 dilution for the calibrator to catch above and below range concs.
+	plot(standards$calc_conc, main=main, standards$od, xlim=c(0,max), xlab="Concentration", ylab="Absorbance",pch=16,col="red",cex=1.5)
+   
+#plots the best-fit line                       
+#	lines(x,y, lty="dotted", col="red")
+
+#Superimposes the points for controls and unknowns on the best-fit line. Unknowns are blue and controls are green. The color has some transparency so that overlapping points can be visualized
+#	lines(unknowns$calc_conc,unknowns$abs, type="points", pch=16,cex=1.5)
+
+#Lays a background grid on the plot
+	grid(nx=NULL,ny=NULL,col="gray")
+
+#Creates two legends
+	legend("topleft",title="4-PL Curve Fit",cex=0.75,pch=16,col=c("red","green","blue"),legend=c("Standard","Control","Unknown"),ncol=1)
+	legend("bottomright",cex=0.75,pch=16,c(paste("r^2=",rsquared),paste("Min Asympt=",cc),paste("Max Asympt=",d),paste("Curvature=",b),paste("Inflection=",e)),ncol=1)
+ 
+#Merges the standards, background and samples back into one dataset.           
+  combined<-rbind(standards,samples)
+
+#splits consecutive duplicate well values into two datasets, odd and even. This is performed so that paired well values may be aligned onto the same row.
+  odd<-split(combined,combined$id%%2==0)$'FALSE'
+  even<-split(combined,combined$id%%2==0)$'TRUE'
+
+#creates a table containing sample type, name and the paired well values for each specimen
+  pair<-data.frame(type=odd$type,name=odd$name,well_1=odd$calc_conc,well_2=even$calc_conc)
+
+#calculates the mean paired well value and adds a column
+  pair$conc_mean<-rowMeans(pair[,3:4],na.rm=FALSE,dim=1)
+              
+#calculates the paired well CV% and adds a column              
+  pair$conc_cv<-(apply(pair[,3:4],1,sd)/pair$conc_mean)*100
+  pair$conc_cv[is.na(pair$conc_cv)]<-NA
+
+#generates a plot of the paired well concentration vs. paired well CV% with corresponding thresholds. Specimens that fail the criteria are colored "RED", those which pass are colored "BLUE".
+  plot(pair$conc_mean,pair$conc_cv,pch=16,cex=0.7,main="Assay X: Concentration vs. CV Plot",xlab="units",ylab="CV%",col=ifelse((pair$conc_mean>vlim)&(pair$conc_cv>hlimL),"red",ifelse(pair$conc_cv>hlimH,"red","blue")),xlim=c(0,ul))
+
+#thresholds
+  abline(h=hlimL)
+  abline(h=hlimH)
+  abline(v=vlim)
+
+#lays a grid in the background
+  grid(nx=NULL,ny=NULL,col="gray")
+
+#creates a column with the results of whether the specimen should be considered for retest based on the criteria. TRUE=review and potentially restest, FALSE=pass
+  pair$retest<-ifelse((pair$conc_mean>vlim&pair$conc_cv>hlimL|pair$conc_cv>hlimH),"TRUE","FALSE")
+  pair$retest[is.na(pair$retest)]<-FALSE
+
+#assigns paired mean, paired CV and retest result columns to the odd and even data sets generated earlier
+  odd$conc_mean<-pair$conc_mean
+  odd$conc_cv<-pair$conc_cv
+  odd$retest<-pair$retest
+  even$conc_mean<-pair$conc_mean
+  even$conc_cv<-pair$conc_cv
+  even$retest<-pair$retest
+
+#combines the odd and even datasets
+  results<-rbind(odd,even)
+
+#sorts results back into the original well position order
+results<-results[with(results,order(results$id)),]
+
+#adds TRUE or FALSE to whether the mean concentration is out of range and needs to be retested with a dilution
+results$dilution<-ifelse(((results$conc_mean>ul)&(results$type=="sample")),"TRUE","FALSE")
+
+
+   if (is_server) {
+       dev.off()
+   }                                               
+
+#results<-results[with(results,order(results$name)),]
+curve<-list(rsquared=rsquared,cc=cc,d=d,b=b,e=e,min=min,max=max)
+return(list(curve=curve,results=results,standards=standards,pair=pair))
+          
+}
+
+#########################################################END OF 4-PL FUNCTION######################################################################
+
+##################################################START 4-PL FUNCTION#########################################
+
+
+#  Defines the function with the following variables
+#  run - this is the output datafile from the plate reader via SPS
+#  ul - the upper limit of the assay as specified by the manufacturer
+#  hlimL - horizonal limit low. This is the CV threshold for unknowns that have a concentration above the vertical threshold (vlim).
+#  hlimH - horizontal limit high. This is the CV threshold for unknowns that have a concentration below the vertical threshold and above the limit of detection
+#  vlim - vertical limit. This is selected based on a number of semi-arbitrary criteria. Examples; the second lowest calibrator, the upper limit divided by 10, or just by eyeballing the concentration vs. CV plot 
+
+"fourplloglog"<-
 function(data,ul,hlimL,hlimH,vlim,name='X')
 { 
 # calls package 'dose response curve' which contains the drm() function used for non-linear regression
@@ -141,7 +327,7 @@ function(data,ul,hlimL,hlimH,vlim,name='X')
 	y <-(cc+((d-cc)/(1+exp(b*log(x)-b*log(e)))))
 
 #Creates a dataset of the log blank OD concs and the calculated log concentration
-	unknowns<-data.frame(abs=c(samples$logodb),conc=c(samples$logconc))
+	unknowns<-data.frame(abs=c(samples$od),conc=c(samples$calc_conc/samples$dilution))
 
 #partitions the graph into 1 row and 2 columns
   par(mfrow=c(2,1))
@@ -150,7 +336,7 @@ function(data,ul,hlimL,hlimH,vlim,name='X')
   main=paste("Assay ",name,": log-log, units")
 
 #plots the log10 concentration vs. log10 OD concs for the calibrators. The x domain is set to include +/- 1 dilution for the calibrator to catch above and below range concs.
-	plot(logconc, main=main, standards$logodb, xlim=c(min(p2),max(p2)), xlab="x=log10(Concentration) units", ylab="y=log10(Absorbance)",pch=16,col="red",cex=1.5)
+	plot(standards$calc_conc, main=main, standards$od, xlim=c(0,max), xlab="Concentration", ylab="Absorbance",pch=16,col="red",cex=1.5)
    
 #plots the best-fit line                       
 	lines(x,y, lty="dotted", col="red")
@@ -166,7 +352,7 @@ function(data,ul,hlimL,hlimH,vlim,name='X')
 	legend("bottomright",cex=0.75,pch=16,c(paste("r^2=",rsquared),paste("Min Asympt=",cc),paste("Max Asympt=",d),paste("Curvature=",b),paste("Inflection=",e)),ncol=1)
  
 #Merges the standards, background and samples back into one dataset.           
-  combined<-rbind(bgs,standards,samples)
+  combined<-rbind(standards,samples)
 
 #splits consecutive duplicate well values into two datasets, odd and even. This is performed so that paired well values may be aligned onto the same row.
   odd<-split(combined,combined$id%%2==0)$'FALSE'
@@ -642,7 +828,6 @@ d1=inverse.rle(res4a)
 #The color value on the plot is set as an ifelse() function where, for each condition set on x (e.g. x>2 for length x>=2), if both are true, it will assign RED, if not, it will assign BLUE.
 
 plot(x,pch=16,type="o",col=ifelse(((a==TRUE&a1==TRUE)|(b==TRUE&b1==TRUE)|(c==TRUE&c1==TRUE)|(d==TRUE&d1==TRUE)),"red","blue"),main="Assay Controls with Westgard Rules Applied, pass=blue  fail=red",xlab="",ylab="Concentration, units")
-print(x)
 
 
 axis(1, 1:length(x),labels=control$plate,line=1,col="black",col.ticks="black",col.axis="black",cex.axis=0.5)
