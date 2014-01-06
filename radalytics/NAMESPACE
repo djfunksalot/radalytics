@@ -1,5 +1,6 @@
 export(
-        fourplfit,
+        fourpl,
+        fourplloglog,
 	fiveplfit,
 	linearfit,
 	westgard,

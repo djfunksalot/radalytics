@@ -28,7 +28,7 @@ function(data,standards)
 	i<-0
 	while (i<nrow(standards)) {
 		i<-i+1
-		standard<standards-standards[i,]
+		standard<-standards[i,]
 		data[data$type == 'standard' & data$name == standard$name,]$conc<-standard$value
         }
 	return(data)

@@ -1,4 +1,4 @@
-\name{fourplfit}
+\name{fourpl}
 \alias{fourplfit}
 \title{Radfit: fit the data in a frame}
 \description{
