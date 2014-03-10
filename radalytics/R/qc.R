@@ -1,6 +1,13 @@
-westward<-function(control,mean,sd){
-
-x<-control$conc_mean
+westgard<-function(results,controls){
+is_server<-Sys.getenv("is_server", unset = FALSE)
+#is_server<-FALSE
+if (is_server) {
+     jpeg('rplot.jpg',width = 960, height = 960, units = "px", quality = 100)
+}
+mean<-controls[controls$objectName==results[,'objectName'][1],"expectedValue"]
+sd<-controls[controls$objectName==results[,'objectName'][1],"sdThreshhold"]
+x<-results$mean
+id<-results$id
 
 #The following steps perform the run length encoding function (rle) on the data with different conditions on x.
 
@@ -35,14 +42,13 @@ d1=inverse.rle(res4a)
 plot(x,pch=16,type="o",col=ifelse(((a==TRUE&a1==TRUE)|(b==TRUE&b1==TRUE)|(c==TRUE&c1==TRUE)|(d==TRUE&d1==TRUE)),"red","blue"),main="Assay Controls with Westgard Rules Applied, pass=blue  fail=red",xlab="",ylab="Concentration, units")
 
 
-
-axis(1, 1:length(x),labels=control$plate,line=1,col="black",col.ticks="black",col.axis="black",cex.axis=0.5)
+axis(1, 1:length(x),labels=results$plateName,line=1,col="black",col.ticks="black",col.axis="black",cex.axis=0.5)
 mtext("Plate",1,line=1,col="black",at=0.2,cex.axis=0.5)
 
-axis(1, 1:length(x), labels=control$run, line=3,cex.axis=0.5)
+axis(1, 1:length(x), labels=results$run, line=3,cex.axis=0.5)
 mtext("Run",1,line=3,at=0.2,cex.axis=0.5)
 
-axis(1, 1:length(x), labels=control$day, adj="vertical", line=5,cex.axis=0.5)
+axis(1, 1:length(x), labels=results$run,  line=5,cex.axis=0.5)
 mtext("Plate",1,line=5,at=0.2,cex.axis=0.5)
 
 
@@ -57,12 +63,19 @@ abline(mean(x)-2*sd(x),0)
 abline(mean(x)+3*sd(x),0)
 abline(mean(x)-3*sd(x),0)
 
-print(which((a==TRUE&a1==TRUE)|(b==TRUE&b1==TRUE)|(c==TRUE&c1==TRUE)|(d==TRUE&d1==TRUE)))
+  if (is_server) {
 
+    dev.off()
+  }                                               
+#return(which((a==TRUE&a1==TRUE)|(b==TRUE&b1==TRUE)|(c==TRUE&c1==TRUE)|(d==TRUE&d1==TRUE)))
+#Sys.sleep(5)  
+#return(merge(id,a,a1,b,b1,c,c1,d,d1))
+data<-list()
+data$id<-results$id
+data$a<-(a==TRUE&a1==TRUE)
+data$b<-(b==TRUE&b1==TRUE)
+data$c<-(c==TRUE&c1==TRUE)
+data$d<-(d==TRUE&d1==TRUE)
+data$any<-(a==TRUE&a1==TRUE)|(b==TRUE&b1==TRUE)|(c==TRUE&c1==TRUE)|(d==TRUE&d1==TRUE)
+return(data)
 }
-
-
-
-#title(main=paste("Assay X",
-   # deparse(substitute(x)), "and", deparse(substitute(y)),
-   # "standardized"), adj=".5")

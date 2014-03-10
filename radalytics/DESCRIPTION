@@ -8,3 +8,7 @@ Maintainer: Steven Vitale <svitale@upenn.edu>
 Dependencies: drc
 Imports: drc
 License: MIT
+Collate:
+ helper.R
+ fit.R
+ qc.R
