@@ -174,6 +174,10 @@ function(data,ul,hlimL,hlimH,vlim,name='X') {
   pair$conc_cv<-(apply(pair[,3:4],1,sd)/pair$conc_mean)*100
   pair$conc_cv[is.na(pair$conc_cv)]<-NA
 
+#calculates the paired wel sd and adds a column              
+  pair$conc_sd<-(apply(pair[,3:4],1,sd))
+  pair$conc_sd[is.na(pair$conc_sd)]<-NA
+
 #generates a plot of the paired well concentration vs. paired well CV% with corresponding thresholds. Specimens that fail the criteria are colored "RED", those which pass are colored "BLUE".
   plot(pair$conc_mean,pair$conc_cv,pch=16,cex=0.7,main="Assay X: Concentration vs. CV Plot",xlab="units",ylab="CV%",col=ifelse((pair$conc_mean>vlim)&(pair$conc_cv>hlimL),"red",ifelse(pair$conc_cv>hlimH,"red","blue")),xlim=c(0,ul))
 
@@ -192,9 +196,11 @@ function(data,ul,hlimL,hlimH,vlim,name='X') {
 #assigns paired mean, paired CV and retest result columns to the odd and even data sets generated earlier
   odd$conc_mean<-pair$conc_mean
   odd$conc_cv<-pair$conc_cv
+  odd$conc_sd<-pair$conc_sd
   odd$retest<-pair$retest
   even$conc_mean<-pair$conc_mean
   even$conc_cv<-pair$conc_cv
+  even$conc_sd<-pair$conc_sd
   even$retest<-pair$retest
 
 #combines the odd and even datasets
