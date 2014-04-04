@@ -4,6 +4,7 @@ is_server<-Sys.getenv("is_server", unset = FALSE)
 if (is_server) {
      jpeg('rplot.jpg',width = 960, height = 960, units = "px", quality = 100)
 }
+results<-results[order((-as.numeric(results$run)),results$objectName),]
 mean<-controls[controls$objectName==results[,'objectName'][1],"expectedValue"]
 sd<-controls[controls$objectName==results[,'objectName'][1],"sdThreshhold"]
 x<-results$mean
