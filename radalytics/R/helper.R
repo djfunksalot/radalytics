@@ -29,7 +29,7 @@ function(data,standards)
 	while (i<nrow(standards)) {
 		i<-i+1
 		standard<-standards[i,]
-		data[data$type == 'standard' & data$name == standard$name,]$conc<-standard$value
+		data[data$type == 'standard' & data$layoutPlate == standard$objectName,]$valueCalculated<-standard$ascribedValue
         }
 	return(data)
 }

@@ -23,13 +23,14 @@ function(data,standards)
 
 
 "applyStandards"<-
-function(data,standards) 
+function(results,standards) 
 {
+data<-data.frame(id=results$id,objectType=results$uqc,measuredValue=results$valueMeasured,objectName=results$layoutPlate,ascribedValue=0)
 	i<-0
 	while (i<nrow(standards)) {
 		i<-i+1
 		standard<-standards[i,]
-		data[data$type == 'standard' & data$name == standard$name,]$conc<-standard$value
+		data[data$objectType == 'standard' & data$objectName == standard$objectName,]$ascribedValue<-standard$ascribedValue
         }
 	return(data)
 }
@@ -53,14 +54,12 @@ function(data,ul,hlimL,hlimH,vlim,name='X') {
 	is_server<-Sys.getenv("is_server", unset = FALSE)
 
 	#split data array into samples and standards
-	samples<-rbind(split(data,data$type)$sample,split(data,data$type)$control)
-	standards<-split(data,data$type)$standard
+	samples<-rbind(split(data,data$objectType)$sample,split(data,data$objectType)$control)
+	standards<-split(data,data$objectType)$standard
 
-	#create separate array for background standards
-	#bgs<-standards[standards$conc==0,]
 
-	#average background od
-	#bg_mean<-mean(bgs$od)
+        standards$measuredValue<-as.numeric(as.vector(standards$measuredValue))
+
 
 	#remove background from rest of standards
 	#standards<-standards[standards$conc!=0,]
@@ -93,7 +92,7 @@ function(data,ul,hlimL,hlimH,vlim,name='X') {
 	}
 
 	#Dose response function which fits a 4pl model to the calibrator dataset
-	fit<-drm(data.frame(standards$od,standards$conc),fct=LL.4())
+	fit<-drm(data.frame(as.numeric(as.vector(standards$measuredValue)),standards$ascribedValue),fct=LL.4())
 
 #set IDs for the coefficients calculated by the 4-pl fit.
 	b=hill_slope=round(fit$coef[1],6)
@@ -102,14 +101,14 @@ function(data,ul,hlimL,hlimH,vlim,name='X') {
 	e=inflection_point=round(fit$coef[4],6)                            
 
 	#Calculates a linear r^2 conc, rounded to six decimal places. NOTE this is only an estimated r^2 conc since a 4-pl curve fit doesn't normally contain an r^2 conc.
-	rsquared<-round(cor(standards$od,standards$conc),6)
+	rsquared<-round(cor(standards$measuredValue,standards$ascribedValue),6)
                       
 	#Calculates the corresponding concentration from the 4pl equation. 
-	samples$dilution[samples$type=='control']<-1
-	samples$dilution[samples$type=='standard']<-1
-	samples$calc_conc=e*(((-d+samples$od)/(cc-samples$od))^(1/b))
+	samples$dilution[samples$objectType=='control']<-1
+	samples$dilution[samples$objectType=='standard']<-1
+	samples$calc_conc=e*(((-d+samples$measuredValue)/(cc-samples$measuredValue))^(1/b))
 	samples$calc_conc_dil=samples$calc_conc*samples$dilution
-	standards$calc_conc=e*(((-d+standards$od)/(cc-standards$od))^(1/b))
+	standards$calc_conc=e*(((-d+standards$measuredValue)/(cc-standards$measuredValue))^(1/b))
 	standards$calc_conc_dil=standards$calc_conc
   
   
@@ -133,7 +132,7 @@ function(data,ul,hlimL,hlimH,vlim,name='X') {
 #	y <-(cc+((d-cc)/(1+exp(b*log(x)-b*log(e)))))
 #
 #Creates a dataset of the log blank OD concs and the calculated log concentration
-	unknowns<-data.frame(abs=c(samples$od),conc=c(samples$calc_conc))
+	unknowns<-data.frame(abs=c(samples$measuredValue),conc=c(samples$calc_conc))
 
 #partitions the graph into 1 row and 2 columns
 #  par(mfrow=c(2,1))
@@ -142,7 +141,7 @@ function(data,ul,hlimL,hlimH,vlim,name='X') {
   main=paste("Assay ",name,":  units")
 
 #plots the log10 concentration vs. log10 OD concs for the calibrators. The x domain is set to include +/- 1 dilution for the calibrator to catch above and below range concs.
-	plot(standards$calc_conc, main=main, standards$od, xlim=c(0,max), xlab="Concentration", ylab="Absorbance",pch=16,col="red",cex=1.5)
+	plot(standards$calc_conc, main=main, standards$measuredValue, xlim=c(0,max), xlab="Concentration", ylab="Absorbance",pch=16,col="red",cex=1.5)
    
 #plots the best-fit line                       
 #	lines(x,y, lty="dotted", col="red")
