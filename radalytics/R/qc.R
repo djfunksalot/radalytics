@@ -7,7 +7,7 @@ if (is_server) {
 results<-results[order((-as.numeric(results$run)),results$objectName),]
 mean<-controls[controls$objectName==results[,'objectName'][1],"expectedValue"]
 sd<-controls[controls$objectName==results[,'objectName'][1],"sdThreshhold"]
-x<-results$mean
+x<-results$interpretedValue
 id<-results$id
 
 #The following steps perform the run length encoding function (rle) on the data with different conditions on x.
