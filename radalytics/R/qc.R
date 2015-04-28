@@ -24,6 +24,8 @@ res3a$values=res3a$lengths>=2
 res4<-rle((-2*sd+mean)>x)
 res4a<-rle((-2*sd+mean)>x)
 res4a$values=res4a$lengths>=2
+# units sd
+results$usd<-(x-mean)/sd
 
 
 #The following steps perform the inverse run length encoding function (inverse.rle) to give the indices where each of the runs are located in the vector. 
@@ -73,6 +75,7 @@ abline(mean(x)-3*sd(x),0)
 #return(merge(id,a,a1,b,b1,c,c1,d,d1))
 data<-list()
 data$id<-results$id
+data$usd<-results$usd
 data$a<-(a==TRUE&a1==TRUE)
 data$b<-(b==TRUE&b1==TRUE)
 data$c<-(c==TRUE&c1==TRUE)
