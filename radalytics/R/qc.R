@@ -5,8 +5,17 @@ if (is_server) {
      jpeg('rplot.jpg',width = 960, height = 960, units = "px", quality = 100)
 }
 results<-results[order((-as.numeric(results$run)),results$objectName),]
-mean<-controls[controls$objectName==results[,'objectName'][1],"expectedValue"]
-sd<-controls[controls$objectName==results[,'objectName'][1],"sdThreshhold"]
+i<-1;while(i<=nrow(controls)){
+controlname<-controls[i,]$objectName;
+controlsd<-controls[i,]$sdThreshhold;
+controlmean<-controls[i,]$expectedValue;
+results$controlmean[results$objectName==controlname]<-controlmean
+results$controlsd[results$objectName==controlname]<-controlsd
+  i<-i+1
+}
+
+mean<-results$controlmean
+sd<-results$controlsd
 x<-results$interpretedValue
 id<-results$id
 
