@@ -1,6 +1,8 @@
 export(
-        fourpl,
+        fit,
 	westgard,
 	applyStandards,
+        singlefourplfit,
+        doublefiveplfit,
 	log10Nice
        )
